@@ -16,7 +16,6 @@ import fasttext
 # ----------------------------------------------------------------------
 # Load FastText English model (300-dimensional vectors)
 # ----------------------------------------------------------------------
-fasttext.util.download_model('en', if_exists='ignore')
 FT_MODEL = fasttext.load_model('models/cc.en.300.bin')
 
 
