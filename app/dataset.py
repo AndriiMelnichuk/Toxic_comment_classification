@@ -5,19 +5,10 @@ with PyTorch DataLoader in a multi-label classification task.
 
 import pandas as pd
 
-import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
-
-import fasttext.util
-import fasttext
-
-# ----------------------------------------------------------------------
-# Load FastText English model (300-dimensional vectors)
-# ----------------------------------------------------------------------
-FT_MODEL = fasttext.load_model('models/cc.en.300.bin')
-
+from app.embedding import FastText
 
 class FastTextAdaptedDataset(Dataset):
   """
@@ -49,10 +40,11 @@ class FastTextAdaptedDataset(Dataset):
         X (torch.Tensor): Shape (sequence_length, embedding_dim)
         y (torch.Tensor): Shape (num_classes,)
         """
-    text = self.text.iloc[index].split(' ')
+    text = str(self.text.iloc[index]).split(' ')
     labels = self.target.iloc[index].to_numpy()
+    emb = FastText()
 
-    X = torch.from_numpy(np.array([FT_MODEL.get_word_vector(word) for word in text]))
+    X = torch.from_numpy(emb.text2matrix(text))
     y = torch.from_numpy(labels).to(torch.float32)
     return X, y
 
