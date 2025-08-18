@@ -67,7 +67,7 @@ class BidirectionalLSTMModel(nn.Module):
     self.linear3   = nn.Linear(linear_nr_counts, label_count)
   
   
-  def forward(self, X):
+  def forward(self, X) -> torch.Tensor:
     output, _ = self.lstm(X)
     output, _ = torch.max(output, dim=1)
     output    = self.dropout1(output)
@@ -110,16 +110,14 @@ if __name__ == "__main__":
   STEP_SIZE         = 10
   GAMMA             = 0.1
   LR                = 0.01
+  THRESHOLD         = 0.5
   TEXT_COLUMN_NAME  = 'comment_text'
   LABEL_NAMES = [
     'toxic', 'severe_toxic', 'obscene',
     'threat', 'insult', 'identity_hate'
   ]
-  DATA_PATH = (
-    '..data/processed/train/'
-    'new_line_del=True,caps_lower=True,punctuation_del=True,'
-    'stop_words_del=True,short_word_len=5,back_translation=True'
-  )
+  DATA_PATH = 'data/processed/train/new_line_del=True,caps_lower=True,punctuation_del=True,stop_words_del=False,remove_empty_string=True,back_translation=True'
+  
 
   # TensorBoard
   writer = SummaryWriter()
@@ -185,7 +183,7 @@ if __name__ == "__main__":
           X, y = X.to(device), y.to(device)
           logits = model(X)
           probs = torch.sigmoid(logits)
-        preds = (probs > 0.5).cpu().numpy()
+        preds = (probs > THRESHOLD).cpu().numpy()
         all_preds.append(preds)
         all_targets.append(y.cpu().numpy())   
 
@@ -200,4 +198,4 @@ if __name__ == "__main__":
     print('-' * 50)
 
     scheduler.step()
-    torch.save(model.state_dict(), '../models/model_weights.pth')
+    torch.save(model.state_dict(), 'models/model_weights.pth')

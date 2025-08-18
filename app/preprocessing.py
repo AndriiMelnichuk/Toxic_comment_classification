@@ -32,8 +32,9 @@ def create_preprocessed_df(
   caps_lower: bool = False,
   punctuation_del: bool = False,
   stop_words_del: bool = False,
-  short_word_len: int = 5,
-  text_column_name: str = 'comment_text'
+  lemmatize: bool = False,
+  remove_empty_string: bool = True,
+  text_column_name: str = 'comment_text',
 ) -> pl.DataFrame:
   """
     Preprocesses the given Polars DataFrame text column.
@@ -44,7 +45,7 @@ def create_preprocessed_df(
       caps_lower (bool): Convert text to lowercase.
       punctuation_del (bool): Remove all punctuation.
       stop_words_del (bool): Remove English stop words.
-      short_word_len (int): Filter out rows with <= N words.
+      lemmatize (bool): Lemmatize words if True.
       text_column_name (str): Column name containing text.
 
     Returns:
@@ -52,7 +53,7 @@ def create_preprocessed_df(
   """
 
   # Step 1: Basic regex cleaning
-  preprocessed_column =pl.col(text_column_name)\
+  preprocessed_column = pl.col(text_column_name)\
     .str.replace_all(r'https?://\S+', 'URL')\
     .str.replace_all(r'\d+', '')\
     .str.replace_all('\n', ' ' if new_line_del else ' NewLine')
@@ -63,7 +64,7 @@ def create_preprocessed_df(
 
   # Step 3: Punctuation handling
   if punctuation_del:
-    punctuation_pattern = r'[^\w\s<>]'
+    punctuation_pattern = r'[^a-zA-Z\s]'
     preprocessed_column = preprocessed_column.str.replace_all(punctuation_pattern, '')
   else:
     keep = {'!', '.', '-', ',', '?'}
@@ -74,15 +75,17 @@ def create_preprocessed_df(
 
   # Step 4: Lemmatization
   preLemmatize = df.with_columns(preprocessed_column)
-  texts = preLemmatize.select(pl.col(text_column_name)).to_series().to_list()
-  lemmas = [[token.lemma_ for token in doc] for doc in nlp.pipe(texts, batch_size=256, n_process=32)]
-  
-  result = (
-    pl.DataFrame({text_column_name: lemmas})
-    .with_columns(pl.col(text_column_name).list.join(' '))
-    .with_columns(preLemmatize.drop(text_column_name))
-  )
-  
+  if lemmatize:
+    texts = preLemmatize.select(pl.col(text_column_name)).to_series().to_list()
+    lemmas = [[token.lemma_ for token in doc] for doc in nlp.pipe(texts, batch_size=256, n_process=32)]
+    result = (
+      pl.DataFrame({text_column_name: lemmas})
+      .with_columns(pl.col(text_column_name).list.join(' '))
+      .with_columns(preLemmatize.drop(text_column_name))
+    )
+  else:
+    result = preLemmatize
+
   # Step 5: Stop words removal
   if stop_words_del:
     result = result.with_columns(
@@ -90,11 +93,13 @@ def create_preprocessed_df(
     )
     
   # Step 6: Final cleanup
-  result = (
-    result.with_columns(pl.col(text_column_name).str.replace_all(r'\s{2,}', ' '))
-    .filter(pl.col(text_column_name).str.split(' ').list.len() > short_word_len)
-    .unique()
+  result = result.with_columns(
+    pl.col(text_column_name).str.replace_all(r'\s{2,}', ' ')
   )
+
+
+  if remove_empty_string:
+    result = result.filter(pl.col(text_column_name) != ' ')
 
   return result
 
@@ -185,14 +190,15 @@ async def translate_sync(
 # CLI Entry Point
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
-  data_path           = '../data/train.csv'
   new_line_del        = True
   caps_lower          = True
   punctuation_del     = True
-  stop_words_del      = True
-  short_word_len      = 5
-  is_train            = True
-  is_back_translation = True
+  stop_words_del      = False
+  is_train            = False
+  remove_empty_string = is_train
+  is_back_translation = False
+  lemmatize           = False
+  data_path           = f'data/raw/{'train' if is_train else 'test'}.csv'
   
   df = pl.read_csv(data_path)
 
@@ -208,15 +214,19 @@ if __name__ == "__main__":
     caps_lower=caps_lower,
     punctuation_del=punctuation_del,
     stop_words_del=stop_words_del,
-    short_word_len=short_word_len
+    lemmatize=lemmatize,
+    remove_empty_string=remove_empty_string,
   )
 
+  if is_train:
+    df = df.unique(subset=['comment_text'])
+
   output_path = (
-    f'../data/processed/'
+    f'data/processed/'
     f'{'train' if is_train else 'test'}/'
     f'new_line_del={new_line_del},caps_lower={caps_lower},'
     f'punctuation_del={punctuation_del},stop_words_del={stop_words_del},'
-    f'short_word_len={short_word_len},back_translation={is_back_translation}',
+    f'remove_empty_string={remove_empty_string},back_translation={is_back_translation}'
   )
 
   df.write_csv(output_path)
