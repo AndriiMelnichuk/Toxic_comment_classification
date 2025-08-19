@@ -9,7 +9,7 @@ Provides the `ToxicityClassifier` class with:
 Example:
     from app.toxicity_classifier import ToxicityClassifier
 
-    clf = ToxicityClassifier("models/model_weights.pth")
+    clf = ToxicityClassifier("model_weights")
     print(clf.predict_text("You are amazing!"))
     print(clf.predict_texts(["I hate you", "Love this!"]))
 """
@@ -26,10 +26,9 @@ import math
 
 class ToxicityClassifier:
   """Wrapper for toxicity classification using a trained Bidirectional LSTM model."""
-
   def __init__(
     self,
-    path='models/model_weights.pth',
+    weights_name='toxic_model_weights',
     new_line_del: bool = True, 
     caps_lower: bool = True,
     punctuation_del: bool = True, 
@@ -45,7 +44,7 @@ class ToxicityClassifier:
     Initialize toxicity classifier.
 
     Args:
-      path: Path to model weights file (.pth).
+      weights_name: Name of model weights file (.pth).
       new_line_del: Remove newlines during preprocessing.
       caps_lower: Lowercase text during preprocessing.
       punctuation_del: Remove punctuation during preprocessing.
@@ -57,19 +56,22 @@ class ToxicityClassifier:
       device: "cuda" or "cpu" (auto-detect if None).
       threshold: Decision threshold for classification (default 0.5).
     """
-    if not os.path.exists(path):
-      raise FileNotFoundError(f'Model file {path} not found')
+    # Define model file path
+    SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+    FILE_PATH = os.path.join(SCRIPT_DIR, '..', 'models', weights_name + '.pth')
+    if not os.path.exists(FILE_PATH):
+      raise FileNotFoundError(f'Model file {FILE_PATH} not found')
     
-    # LSTM Model init
+    # Initialize LSTM model 
     if device is None:
       self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
     else:
       self.device = device
     model = BidirectionalLSTMModel()
-    model.load_state_dict(torch.load(path))
-    model.eval()
+    model.load_state_dict(torch.load(FILE_PATH, map_location=self.device))
     self.model = model.to(self.device)
-
+    self.model.eval()
+    
     # processing info
     self.new_line_del = new_line_del
     self.caps_lower = caps_lower
@@ -82,6 +84,7 @@ class ToxicityClassifier:
     # Inference parameters
     self.batch_size = batch_size
     self.threshold = threshold
+  
   
   def predict_text(self, text: str) -> list[int]:
     """Predict toxicity for a single text string."""
