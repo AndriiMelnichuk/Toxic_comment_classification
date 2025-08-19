@@ -12,18 +12,9 @@ class BatchPredictRequest(BaseModel):
   texts: list[str]
 
 
-model: ToxicityClassifier | None = None
+model = ToxicityClassifier()
 
-
-@asynccontextmanager
-def lifespan(app: FastAPI):
-  """Load ML model once on app startup."""
-  global model
-  model = ToxicityClassifier()
-  yield
-
-
-app = FastAPI(title='ML Model API', version='1.0', lifespan=lifespan)
+app = FastAPI(title='ML Model API', version='1.0')
 
 
 @app.post('/predict')
