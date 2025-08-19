@@ -136,7 +136,7 @@ docker run -p 8000:8000 toxic-comment-classifier
 
 ## 📄 License
 
-MIT
+[MIT](LICENSE)
 
 ---
 
