@@ -88,6 +88,13 @@ class BidirectionalLSTMModel(nn.Module):
 # CLI Entry Point
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
+  import os
+  import sys
+
+  SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+  PROJECT_ROOT = os.path.join(SCRIPT_DIR, '..')
+  sys.path.append(PROJECT_ROOT)
+
   import torch
   from torch import nn
   from torch.optim import Adam

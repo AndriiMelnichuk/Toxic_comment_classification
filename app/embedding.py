@@ -23,13 +23,16 @@ Example:
 import fasttext
 import numpy as np
 import logging
+import os
 
 
 logging.basicConfig(level=logging.INFO)
 
-model_path = 'models/cc.en.300.bin'
-logging.info('Loading FastText model from %s ...', model_path)
-FAST_TEXT_MODEL = fasttext.load_model(model_path)
+SCRIPT_DIR = os.path.dirname(__file__)
+MODEL_PATH = os.path.join(SCRIPT_DIR, '..', 'models', 'cc.en.300.bin')
+
+logging.info('Loading FastText model from %s ...', MODEL_PATH)
+FAST_TEXT_MODEL = fasttext.load_model(MODEL_PATH)
 logging.info('FastText model loaded')
 
 
